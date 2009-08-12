@@ -1,0 +1,182 @@
+#!/bin/env python
+# -*- coding: utf-8 -*-
+
+import pygtk
+pygtk.require('2.0')
+import gtk
+import sys, os, xml, time
+
+
+# Differences between gtk.Window() and gtk.MessageDialog(), when looking at props:
+# 					Window		MessageDialog
+# type				TOPLEVEL	TOPLEVEL 	(GTK_WINDOW_*)
+#*type-hint			NORMAL		DIALOG		(GDK_WINDOW_TYPE_HINT_*)
+#*allow-grow		True		False
+# allow-shrink		False		False
+#*resizable			True		False
+# modal				False		False
+#*skip-taskbar-hint	False		True
+# skip-pager-hint	False		False
+# urgency-hint		False		False
+# accept-focus		True		True
+# focus-on-map		True		True
+# decorated			True		True
+# deletable			True		True
+
+
+
+class Program(object):
+	name     = "Browser Selector"
+	version  = "1.0"
+	author   = "Denilson Figueiredo de Sá"
+	email    = "denilsonsa@gmail.com"
+	urls     = (
+		"http://denilsonsa.sh.nu/~denilson/",
+		"http://denilsonsa.selfip.org/~denilson/")
+	exe_file = "browser-selector"
+	rc_file  = "~/.browser-selector"
+	sample_rc_file = """<?xml version="1.0" standalone="yes"?>
+<browserselector>
+	<browsers>
+		<browser
+			name="Firefox"
+			cmd="firefox &quot;%s&quot;"
+			icon="/usr/share/pixmaps/mozillafirefox-bin-icon.png"
+		/>
+		<browser
+			name="Opera"
+			cmd="opera &quot;%s&quot;"
+			icon="/opt/opera/share/opera/images/opera_16x16.png"
+		/>
+		<browser
+			name="Links (graphic)"
+			cmd="links -g &quot;%s&quot;"
+			icon="/usr/share/pixmaps/links.xpm"
+		/>
+		<browser
+			name="Dillo"
+			cmd="dillo &quot;%s&quot;"
+		/>
+	</browsers>
+</browserselector>
+"""
+
+
+class base_dialog(object):
+	"""Base class for simple dialogs.
+
+	Constructor will create a gtk.MessageDialog object and store it at self.dialog.
+	The dialog title will be the program name + program version.
+
+	Methods:
+	.run() - Show the dialog and return the GTK response id.
+	"""
+
+	def __init__(self, type, buttons, message):
+		global program
+		self.dialog = gtk.MessageDialog(
+			parent         = None,
+			flags          = gtk.DIALOG_MODAL,
+			type           = type,
+			buttons        = buttons,
+			message_format = message)
+		self.dialog.props.title = program.name+" "+program.version
+
+	def run(self):
+		response = self.dialog.run()
+		self.dialog.hide()
+#		self.dialog.destroy()
+#		None of these will work, because I haven't called gtk_main_loop.
+#		So, I must redesign this application to make it work with gtk_main_loop.
+		return response
+
+
+class info_dialog(base_dialog):
+	"""Opens an info dialog, with only OK button.
+
+	Constructor: info_dialog( message )
+
+	Methods: (no new methods, all are inherited from base_dialog class)
+	"""
+
+	def __init__(self,message):
+		base_dialog.__init__(self, gtk.MESSAGE_INFO, gtk.BUTTONS_OK, message)
+
+
+class yes_no_dialog(base_dialog):
+	"""Opens a Yes/No dialog.
+
+	Constructor: yes_no_dialog( message )
+
+	Methods: (no new methods, all are inherited from base_dialog class)
+	"""
+
+	def __init__(self,message):
+		base_dialog.__init__(self, gtk.MESSAGE_QUESTION, gtk.BUTTONS_YES_NO, message)
+
+
+class rc_file_not_found_dialog(yes_no_dialog):
+	"""Opens a Yes/No dialog asking user if the rc_file should be created.
+
+	Constructor: rc_file_not_found_dialog( filename )
+
+	Methods:
+	.run() - Overloaded from parent. Read more at its own __doc__.
+	"""
+
+	def __init__(self,filename):
+		global program
+		self.filename = filename
+		self.message = "The configuration file \"%s\" was not found. %s cannot work without one. Should this file be automatically created?" % (self.filename, program.name)
+		yes_no_dialog.__init__(self, self.message)
+
+	def run(self):
+		"""Overloaded from parent. Will show the dialog, get response and, if yes, try to create the file.
+
+		Returns:
+		True, if user answers Yes and file could be created.
+		False, if any of above fails.
+		"""
+		response = yes_no_dialog.run(self)
+		time.sleep(5)
+		if response == gtk.RESPONSE_YES:
+			print "TODO: create a default XML file."
+		else:
+			return False
+
+#		gtk_response_list = {
+#			gtk.RESPONSE_ACCEPT : "gtk.RESPONSE_ACCEPT",
+#			gtk.RESPONSE_APPLY : "gtk.RESPONSE_APPLY",
+#			gtk.RESPONSE_CANCEL : "gtk.RESPONSE_CANCEL",
+#			gtk.RESPONSE_CLOSE : "gtk.RESPONSE_CLOSE",
+#			gtk.RESPONSE_DELETE_EVENT : "gtk.RESPONSE_DELETE_EVENT",
+#			gtk.RESPONSE_HELP : "gtk.RESPONSE_HELP",
+#			gtk.RESPONSE_NO : "gtk.RESPONSE_NO",
+#			gtk.RESPONSE_NONE : "gtk.RESPONSE_NONE",
+#			gtk.RESPONSE_OK : "gtk.RESPONSE_OK",
+#			gtk.RESPONSE_REJECT : "gtk.RESPONSE_REJECT",
+#			gtk.RESPONSE_YES : "gtk.RESPONSE_YES"}
+#		print list[response]
+
+
+
+class browser_selector(object):
+	def __init__(self):
+		global program
+		program = Program()
+		self.rc_filename = os.path.expanduser(program.rc_file)
+
+	def check_and_load_rc_file(self):
+		if not os.path.exists(self.rc_filename):
+			question = rc_file_not_found_dialog(self.rc_filename)
+			if not question.run():
+				sys.exit(1)
+		self.xml = xml.minidom.parse(self.rc_filename)
+
+	def run(self):
+		self.check_and_load_rc_file()
+
+
+if __name__ == "__main__":
+	main = browser_selector()
+	main.run()
