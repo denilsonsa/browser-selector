@@ -1,0 +1,60 @@
+2007-07-06: version 0.2
+* Found the cause of BUG1 and fixed it.
+  <BUG1>
+  Cause:
+  When wengophone is run, it requires a custom $LD_LIBRARY_PATH environment
+  variable. This variable is also passed to any child processes. So, when
+  wengophone tries to run this script (by calling $BROWSER), that variable
+  messes with GTK+ libraries.
+  
+  When running wengophone, LD_LIBRARY_PATH contains "/opt/wengophone/". There
+  is a libpng12.so.0 file inside that directory. So, when GTK+ tries to load
+  libpng, the wrong library is loaded from wrong place, and the script
+  receives an ImportError exception.
+  
+  Solution 1 (does not work):
+  Add one of the following lines before importing gtk:
+  del os.environ["LD_LIBRARY_PATH"]
+  os.environ["LD_LIBRARY_PATH"]=""
+  
+  Solution 2 (also does not work):
+  Changing the very first line of the script did not work. I tried these
+  interpreters:
+  #!/bin/env -i python
+  #!/bin/env -u LD_LIBRARY_PATH python
+  #!/usr/bin/python -E
+  
+  Solution 3 (should work, but I don't want it):
+  Adding a little shell wrapper script should work, but this is against
+  browser-selector design of having everything in only one file. So I won't
+  implement this solution.
+  
+  Solution 4 (a hack that actually works):
+  This is a somewhat messy hack, but works. If an ImportError exception is
+  caught, then the script will check if LD_LIBRARY_PATH var is set. If it is,
+  then it will be cleared and the script will call itself (yes, recursive)
+  with a new environment (using execvlp()). If that environment variable is
+  unset or blank, then the ImportError exception will just be raised again.
+  
+  </BUG1>
+
+
+2007-07-05: version 0.1
+* Initial version. All main features were implemented.
+* There is a nasty bug when launching this script from wengophone program.
+  <BUG1>
+  Summary: Launching this script from wengophone fails when trying to import gtk
+  Reporter: Denilson
+  Description:
+  On my Gentoo system, this script runs perfectly from shell, but not from
+  BROWSER variable. Actually, this only happens when trying to launch it from
+  wengophone program (launching from googleearth works). This is the message:
+  
+   Traceback (most recent call last):
+    File "/home/denilson/python/browser-selector/browser-selector-0.1", line 7, in ?
+      import gtk
+    File "/usr/lib/python2.4/site-packages/gtk-2.0/gtk/__init__.py", line 48, in ?
+      from gtk import _gtk
+  ImportError: /usr/lib/libcairo.so.2: symbol png_set_expand_gray_1_2_4_to_8, version PNG12_0 not defined in file libpng12.so.0 with link time reference
+  xdg-open  no method available for opening 'http://www.wengo.fr/public/public.php?page=subscribe_wengos&wl=wengo&lang='
+  </BUG1>
