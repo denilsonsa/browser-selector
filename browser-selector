@@ -1,180 +1,481 @@
 #!/bin/env python
 # -*- coding: utf-8 -*-
+# vi:ts=4 sw=4
 
 import pygtk
 pygtk.require('2.0')
 import gtk
-import sys, os, xml, time
+import sys, os, subprocess, shlex, xml.dom.minidom
 
 
-# Differences between gtk.Window() and gtk.MessageDialog(), when looking at props:
-# 					Window		MessageDialog
-# type				TOPLEVEL	TOPLEVEL 	(GTK_WINDOW_*)
-#*type-hint			NORMAL		DIALOG		(GDK_WINDOW_TYPE_HINT_*)
-#*allow-grow		True		False
-# allow-shrink		False		False
-#*resizable			True		False
-# modal				False		False
-#*skip-taskbar-hint	False		True
-# skip-pager-hint	False		False
-# urgency-hint		False		False
-# accept-focus		True		True
-# focus-on-map		True		True
-# decorated			True		True
-# deletable			True		True
+# All was good, but when I actually tried to use this as BROWSER, then I got
+# the following message (the fixed version of this program will be called 0.2):
+#
+# Traceback (most recent call last):
+#  File "/home/denilson/python/browser-selector/browser-selector-0.1", line 7, in ?
+#    import gtk
+#  File "/usr/lib/python2.4/site-packages/gtk-2.0/gtk/__init__.py", line 48, in ?
+#    from gtk import _gtk
+#ImportError: /usr/lib/libcairo.so.2: symbol png_set_expand_gray_1_2_4_to_8, version PNG12_0 not defined in file libpng12.so.0 with link time reference
+#xdg-open  no method available for opening 'http://www.wengo.fr/public/public.php?page=subscribe_wengos&wl=wengo&lang='
 
 
 
-class Program(object):
+
+# TODO:
+# - Run a spellchecker, just to make sure the comments and the strings are ok.
+# - Automatically resize icon images.
+#   - Add "max_size=32x32" and "min_size=16x16" configuration options.
+# - Make esc key close the dialog. (but how to do it?)
+# - Add a button called "Select and copy".
+# - Make a nice webpage for this program and publish it on web!
+# - Change its version to 1.0 after some of above is done, and after some
+#   more testing.
+
+
+# Features:
+# - Python and PyGTK are the only required dependencies.
+# - The whole script is contained in only one file.
+# - Simple XML configuration file.
+# - Automatically write a default/sample configuration file if no one is
+#   found, but asks the user before doing it. This way, the user knows
+#   what happens and can edit the configuration file later.
+# - When run without parameters, or with more than one parameter, opens
+#   a dialog with usage instructions and information about author.
+# - The command to launch the browser is run in a safe way. The URL is
+#   passed directly as a paramenter. No need to worry about quotes or other
+#   special characters.
+# - Shows the command to launch each browser as a tooltip (but this can be
+#   disabled in configuration file).
+# - Automatically saves the last choosen browser, and restores this choice
+#   next time.
+# - Shows the URL in a text entry field, allowing the user to edit or copy
+#   the URL before launching the selected browser.
+
+
+# Installation instructions:
+# - Get the script file.
+# - Put executable permissions on it (chmod +x broken-selector).
+# - Place it in some directory that is listed in $PATH (I personally like
+#   to place it at ~/bin directory, but you may need to manually add this
+#   to $PATH).
+# - (Optional) Add this line to your ~/.bash_profile, or ~/.bashrc, or any
+#   login script you want:
+#   export BROWSER=browser-selector
+# - When run for the first time, it will write a sample configuration file
+#   (after the user confirmation). Then, just edit that file to configure
+#   this program.
+
+
+# Notes about config.xml:
+# - If "cmd" does not contain %s, then the URL is appended as last parameter.
+# - If "cmd" contains a %s, then the URL is placed wherever %s is found.
+# - If "cmd" contains more than one %-escape, then this script might raise
+#   an exception, depending on position of these escapes.
+#
+# - "icon" attribute is optional.
+# - If file pointed by "icon" is not found, then it won't be loaded and no
+#   icon will be displayed.
+# - If file pointed by "icon" is found but can't be loaded for some reason,
+#   then a "broken image" icon will be displayed.
+#
+# - "show_tooltips" and "show_images" are pretty descriptive, so I won't
+#   explain them. :)
+# - "save_last_selection" will prevent this program from *writing* the
+#   "<conf_dir>/last_selected" file. However, this program will always
+#   read that file if it exists.
+
+
+# Known bugs/limitations:
+# - Almost no exception/error handling is done. The following things are
+#   known to abort the program:
+#   - Fail while reading a file
+#   - Fail while writing a file
+#   - Fail while parsing the XML config file
+#   - Probably many others...
+# - Incorrect (but well-formed) XML files might be accepted. This happens
+#   because no DTD validation is being performed. Adding such feature has
+#   almost no benefit and requires one extra dependency: PyXML.
+# - There is no fancy GUI to edit the configuration file. You must do it
+#   manually, using a text editor. Since users only need to edit the
+#   configuration file once (and whenever they add a new browser), there
+#   is no real need for a GUI.
+# - This script does not autodetect installed browsers. Even though it
+#   would be a nice feature, I don't want to add it. However, I accept
+#   patches if someone else implement that.
+
+
+class program(object):
 	name     = "Browser Selector"
-	version  = "1.0"
-	author   = "Denilson Figueiredo de Sá"
+	version  = "0.1"
+	date     = "2007-07-05"
+	author   = u"Denilson Figueiredo de Sá"
 	email    = "denilsonsa@gmail.com"
 	urls     = (
 		"http://denilsonsa.sh.nu/~denilson/",
 		"http://denilsonsa.selfip.org/~denilson/")
 	exe_file = "browser-selector"
-	rc_file  = "~/.browser-selector"
-	sample_rc_file = """<?xml version="1.0" standalone="yes"?>
+	conf_dir = "~/.config/browser-selector"
+	last_selected_file = "last_selected"
+	conf_file          = "conf.xml"
+	sample_conf_file   = """<?xml version="1.0" standalone="yes"?>
 <browserselector>
 	<browsers>
 		<browser
-			name="Firefox"
-			cmd="firefox &quot;%s&quot;"
-			icon="/usr/share/pixmaps/mozillafirefox-bin-icon.png"
+			name="Mozilla Firefox"
+			cmd="firefox"
+			icon="/usr/share/pixmaps/mozilla-firefox-bin-icon.png"
+		/>
+		<browser
+			name="Konqueror"
+			cmd="konqueror"
 		/>
 		<browser
 			name="Opera"
-			cmd="opera &quot;%s&quot;"
-			icon="/opt/opera/share/opera/images/opera_16x16.png"
+			cmd="opera"
+			icon="/usr/share/pixmaps/opera.xpm"
 		/>
 		<browser
 			name="Links (graphic)"
-			cmd="links -g &quot;%s&quot;"
+			cmd="links -g"
 			icon="/usr/share/pixmaps/links.xpm"
 		/>
 		<browser
 			name="Dillo"
-			cmd="dillo &quot;%s&quot;"
+			cmd="dillo"
 		/>
 	</browsers>
+	<config>
+		<option name="show_tooltips" value="true" />
+		<option name="show_images" value="true" />
+		<option name="save_last_selection" value="true" />
+	</config>
 </browserselector>
 """
 
 
-class base_dialog(object):
-	"""Base class for simple dialogs.
 
-	Constructor will create a gtk.MessageDialog object and store it at self.dialog.
-	The dialog title will be the program name + program version.
-
-	Methods:
-	.run() - Show the dialog and return the GTK response id.
-	"""
-
-	def __init__(self, type, buttons, message):
-		global program
-		self.dialog = gtk.MessageDialog(
-			parent         = None,
-			flags          = gtk.DIALOG_MODAL,
-			type           = type,
-			buttons        = buttons,
-			message_format = message)
-		self.dialog.props.title = program.name+" "+program.version
-
-	def run(self):
-		response = self.dialog.run()
-		self.dialog.hide()
-#		self.dialog.destroy()
-#		None of these will work, because I haven't called gtk_main_loop.
-#		So, I must redesign this application to make it work with gtk_main_loop.
-		return response
+class Browser(object):
+	"Simple object (or maybe just a struct) containing the browser data."
+	def __init__(self,name,cmd,icon=""):
+		self.name = name
+		self.cmd  = cmd
+		self.icon = icon
 
 
-class info_dialog(base_dialog):
-	"""Opens an info dialog, with only OK button.
-
-	Constructor: info_dialog( message )
-
-	Methods: (no new methods, all are inherited from base_dialog class)
-	"""
-
-	def __init__(self,message):
-		base_dialog.__init__(self, gtk.MESSAGE_INFO, gtk.BUTTONS_OK, message)
+	def __repr__(self):
+		return "Browser(name=%s, cmd=%s, icon=%s)" % (repr(self.name), repr(self.cmd), repr(self.icon))
 
 
-class yes_no_dialog(base_dialog):
-	"""Opens a Yes/No dialog.
-
-	Constructor: yes_no_dialog( message )
-
-	Methods: (no new methods, all are inherited from base_dialog class)
-	"""
-
-	def __init__(self,message):
-		base_dialog.__init__(self, gtk.MESSAGE_QUESTION, gtk.BUTTONS_YES_NO, message)
+	def __str__(self):
+		return "Browser(%s)" % str(self.name)
 
 
-class rc_file_not_found_dialog(yes_no_dialog):
-	"""Opens a Yes/No dialog asking user if the rc_file should be created.
 
-	Constructor: rc_file_not_found_dialog( filename )
+class config_object(object):
+	def __init__(self):
+		"Loads the configuration file(s). Extracted data can be accessed using attributes of this object."
+		# Defaults:
+		self.browsers = []
+		self.show_tooltips = True
+		self.show_images = True
+		self.save_last_selection = True
+		self.last_selected = 0
 
-	Methods:
-	.run() - Overloaded from parent. Read more at its own __doc__.
-	"""
+		doc = xml.dom.minidom.parse(program.conf_file)
 
-	def __init__(self,filename):
-		global program
-		self.filename = filename
-		self.message = "The configuration file \"%s\" was not found. %s cannot work without one. Should this file be automatically created?" % (self.filename, program.name)
-		yes_no_dialog.__init__(self, self.message)
+		browsers_el = doc.getElementsByTagName("browsers")
+		if len(browsers_el)==1:
+			browsers_el = browsers_el[0]
+			for i in browsers_el.getElementsByTagName("browser"):
+				self.browsers.append( Browser(
+					i.getAttribute("name"),
+					i.getAttribute("cmd"),
+					i.getAttribute("icon")
+				) )
+		elif len(browsers_el)!=1:
+			raise Exception("Invalid XML configuration file! Exactly one <browsers> element is required.")
 
-	def run(self):
-		"""Overloaded from parent. Will show the dialog, get response and, if yes, try to create the file.
+		config_el = doc.getElementsByTagName("config")
+		if len(config_el)==1:
+			config_el = config_el[0]
+			for i in config_el.getElementsByTagName("option"):
+				try:
+					name  = i.getAttribute("name").lower()
+					value = i.getAttribute("value")
+					if name == "show_tooltips":
+						self.show_tooltips = self.parse_boolean(value)
+					elif name == "show_images":
+						self.show_images = self.parse_boolean(value)
+					elif name == "save_last_selection":
+						self.save_last_selection = self.parse_boolean(value)
+				except ValueError, e:
+					raise ValueError("Invalid value while parsing '%s' option: %s" % (name, str(e)))
+		elif len(config_el)>1:
+			raise Exception("Invalid XML configuration file! Only one <config> element is allowed.")
 
-		Returns:
-		True, if user answers Yes and file could be created.
-		False, if any of above fails.
-		"""
-		response = yes_no_dialog.run(self)
-		time.sleep(5)
-		if response == gtk.RESPONSE_YES:
-			print "TODO: create a default XML file."
-		else:
+		doc.unlink()
+
+		# I think there must be some more elegant way of doing this.
+		# I don't think this is written in a pythonic way. If you have
+		# any better idea, please contact me!
+		f = None
+		try:
+			f = open(program.last_selected_file)
+			self.last_selected = int(f.read(9))
+		except Exception, e:
+			pass
+		if f:
+			f.close()
+
+
+	def parse_boolean(self, value):
+		"""Extract and return the boolean value (True or False) corresponding to the passed string. This is done by comparing the value with a list of known strings.	The comparison is case-insensitive.
+
+		If 'value' contains one unrecognized string, then a ValueError exception is raised."""
+		value = value.lower()
+		if   value in ("true" ,"1","one" ,"yes","yep" ,"yeah"  ):
+			return True
+		elif value in ("false","0","zero","no" ,"nope","no way"):
 			return False
+		else:
+			raise ValueError("'%s' is not a boolean." % value)
 
-#		gtk_response_list = {
-#			gtk.RESPONSE_ACCEPT : "gtk.RESPONSE_ACCEPT",
-#			gtk.RESPONSE_APPLY : "gtk.RESPONSE_APPLY",
-#			gtk.RESPONSE_CANCEL : "gtk.RESPONSE_CANCEL",
-#			gtk.RESPONSE_CLOSE : "gtk.RESPONSE_CLOSE",
-#			gtk.RESPONSE_DELETE_EVENT : "gtk.RESPONSE_DELETE_EVENT",
-#			gtk.RESPONSE_HELP : "gtk.RESPONSE_HELP",
-#			gtk.RESPONSE_NO : "gtk.RESPONSE_NO",
-#			gtk.RESPONSE_NONE : "gtk.RESPONSE_NONE",
-#			gtk.RESPONSE_OK : "gtk.RESPONSE_OK",
-#			gtk.RESPONSE_REJECT : "gtk.RESPONSE_REJECT",
-#			gtk.RESPONSE_YES : "gtk.RESPONSE_YES"}
-#		print list[response]
+
+
+class browser_select_window(object):
+	def __init__(self, url=""):
+		self.window = gtk.Window()
+		self.window.set_title(program.name+" "+program.version)
+		self.window.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_DIALOG)
+		self.window.set_border_width(12)
+		self.window.connect("delete_event", self.delete_event)
+
+		self.url = gtk.Entry()
+		self.url.set_activates_default(True)
+		self.url.set_text(url)
+
+		self.radio_selected = 0
+		self.radio_box = self.create_radio_buttons()
+
+		self.execute_button = gtk.Button(stock=gtk.STOCK_EXECUTE)
+		self.execute_button.connect("clicked", self.execute_clicked)
+
+		self.close_button = gtk.Button(stock=gtk.STOCK_CLOSE)
+		self.close_button.connect_object("clicked", self.delete_event, self.window, None)
+
+		self.buttons_box = gtk.HButtonBox()
+		self.buttons_box.set_layout(gtk.BUTTONBOX_END)
+		self.buttons_box.add(self.execute_button)
+		self.buttons_box.add(self.close_button)
+
+		self.main_vbox = gtk.VBox(False,10)
+		self.main_vbox.pack_start(self.url, True, True, 0)
+		self.main_vbox.pack_start(self.radio_box, True, False, 0)
+		self.main_vbox.pack_start(self.buttons_box, False, True, 0)
+		self.window.add(self.main_vbox)
+		self.window.show_all()
+
+		self.execute_button.set_flags(gtk.CAN_DEFAULT)
+		self.execute_button.grab_default()
+	
+
+	def create_radio_buttons(self):
+		"Reads the list of browsers and returns a VBox containing a radio button for each browser. Also adds tooltips and images to each radio button."
+		box = gtk.VBox(True,0)
+		if program.config.show_tooltips:
+			tooltips = gtk.Tooltips()
+			tooltips.enable()
+		radio = None
+		for (number, i) in enumerate(program.config.browsers):
+			radio = gtk.RadioButton(radio, i.name, True)
+			radio.connect("toggled", self.radio_button_toggled, number)
+
+			if number==program.config.last_selected:
+				radio.set_active(True)
+				# The next line is not actually needed, because previous line
+				# call will run the callback.
+				self.radio_selected = number
+
+
+			if program.config.show_tooltips:
+				tooltips.set_tip(radio, i.cmd)
+
+			if program.config.show_images and os.path.isfile(i.icon):
+				image = gtk.Image()
+				# set_from_file() method never returns None. In case the file
+				# cannot be found or cannot be loaded, a "broken image" icon
+				# will be returned.
+				image.set_from_file(i.icon)
+				radio.set_image(image)
+
+			# The following two lines are required to make tooltips be
+			# displayed. It's stupid, but it's true. Maybe this will get
+			# better in GTK+ 2.12.
+			eb = gtk.EventBox()
+			eb.add(radio)
+
+			box.pack_start(eb, False, True, 0)
+
+		return box
+	
+
+	def execute_clicked(self, widget):
+		main.execute_browser(self.radio_selected, self.url.get_text())
+
+
+	def radio_button_toggled(self, widget, number):
+		if widget.get_active():
+			self.radio_selected = number
+
+
+	def delete_event(self, widget, event, data=None):
+		main.close_app()
+		return False
 
 
 
 class browser_selector(object):
 	def __init__(self):
-		global program
-		program = Program()
-		self.rc_filename = os.path.expanduser(program.rc_file)
+		"Main initializations."
+		program.conf_dir = os.path.expanduser(program.conf_dir)
+		program.conf_file = program.conf_dir + os.path.sep + program.conf_file
+		program.last_selected_file = program.conf_dir + os.path.sep + program.last_selected_file
 
-	def check_and_load_rc_file(self):
-		if not os.path.exists(self.rc_filename):
-			question = rc_file_not_found_dialog(self.rc_filename)
-			if not question.run():
-				sys.exit(1)
-		self.xml = xml.minidom.parse(self.rc_filename)
 
 	def run(self):
-		self.check_and_load_rc_file()
+		"Main program."
+		if not os.path.isfile(program.conf_file):
+			if self.ask_to_create_conf_file():
+				self.create_conf_file()
+			else:
+				self.close_app(1)
+		program.config = config_object()
+		if len(sys.argv)==2:
+			self.browser_select = browser_select_window(url=sys.argv[1])
+			self.browser_select.window.show()
+			gtk.main()
+			#self.browser_select.window.destroy()
+		else:
+			self.show_info_dialog()
+
+
+	def ask_to_create_conf_file(self):
+		"Opens a dialog asking the user if he/she wants to create a default configuration file. Returns True or False, depending on user choice."
+		dialog = gtk.MessageDialog(
+			parent         = None,
+			flags          = gtk.DIALOG_MODAL,
+			type           = gtk.MESSAGE_QUESTION,
+			buttons        = gtk.BUTTONS_YES_NO,
+			message_format = "Should a default configuration file be created?"
+		)
+		dialog.set_title(program.name+" "+program.version)
+		dialog.props.skip_taskbar_hint = False
+		dialog.format_secondary_markup(
+			('%s requires a configuration file before it can be used. Should it create a default configuration file now?\n\n'+
+			'If you answer yes, the file will be written to "%s".\n'+
+			'If you answer no, %s will quit.') % (program.name, program.conf_file, program.name)
+		)
+		dialog.set_default_response(gtk.RESPONSE_YES)
+		ret = dialog.run()
+		dialog.destroy()
+		# To discover the numerical values of each response:
+		# print gtk.ResponseType.__enum_values__
+		if ret == gtk.RESPONSE_YES:
+			return True
+		elif ret == gtk.RESPONSE_NO or ret == gtk.RESPONSE_DELETE_EVENT:
+			return False
+		else:
+			print "Received unknown response value: ",ret
+			return False
+
+
+	def show_info_dialog(self):
+		"Opens an info dialog containing a brief explanation about program usage and author name, e-mail and site."
+		dialog = gtk.MessageDialog(
+			parent         = None,
+			flags          = gtk.DIALOG_MODAL,
+			type           = gtk.MESSAGE_INFO,
+			buttons        = gtk.BUTTONS_OK
+		)
+		dialog.set_markup(
+			"<big><b>%s %s (%s)</b></big>\n" % (program.name, program.version, program.date) +
+			"\n"+
+			"<b>Usage:</b>\n"+
+			"<tt>%s <i>URL</i></tt>\n" % program.exe_file +
+			"\n"+
+			"%s is a program that receives one URL as parameter and allows the user to choose what program should open that URL. It is intended to be used as a default URL handler.\n" % program.name +
+			"\n"+
+			"Add this line to your login script to make %s your default URL handler:\n" % program.name +
+			"<tt>export BROWSER=%s</tt>\n" % program.exe_file +
+			"\n"+
+			"This program stores its configuration files at <tt>%s</tt>\n" % program.conf_dir +
+			"\n"+
+			"<b>Author:</b>\n%s\n%s\n" % (program.author, program.email) +
+			"\n".join(program.urls)
+		)
+		dialog.set_title(program.name+" "+program.version)
+		dialog.props.skip_taskbar_hint = False
+		dialog.set_default_response(gtk.RESPONSE_OK)
+		dialog.run()
+		dialog.destroy()
+
+
+	def create_conf_file(self):
+		"Creates the configuration directory and the default configuration file."
+		if not os.path.exists(program.conf_dir):
+			os.makedirs(program.conf_dir)
+		f = open(program.conf_file,"w")
+		f.write(program.sample_conf_file)
+		f.close()
+
+
+	def execute_browser(self, index, url):
+		b = program.config.browsers[index]
+		try:
+			c = shlex.split(str(b.cmd))
+			for i,s in enumerate(c):
+				if "%s" in s:
+					c[i] = s % url
+					break
+			else:
+				c.append(str(url))
+			p = subprocess.Popen(c)
+		except OSError, e:
+			dialog = gtk.MessageDialog(
+				parent         = self.browser_select.window,
+				flags          = gtk.DIALOG_MODAL,
+				type           = gtk.MESSAGE_ERROR,
+				buttons        = gtk.BUTTONS_OK,
+				message_format = "Error while trying to execute the selected application:\n%s" % str(e)
+			)
+			dialog.set_title(program.name+" "+program.version)
+			dialog.set_default_response(gtk.RESPONSE_OK)
+			dialog.run()
+			dialog.destroy()
+		else:
+			self.save_last_selection(index)
+			self.close_app(0)
+
+
+	def save_last_selection(self, index):
+		if program.config.save_last_selection:
+			try:
+				f = open(program.last_selected_file,"w")
+				f.write(str(index))
+				f.close()
+			except:
+				pass
+
+
+	def close_app(self, status=0):
+		"Quits the application, by first ending GTK+ main loop, and then calling sys.exit()."
+		try:
+			gtk.main_quit()   # In case this is called outside of a mainloop
+		except RuntimeError:  # Then I will just ignore that.
+			pass
+		sys.exit(status)
+
 
 
 if __name__ == "__main__":
