@@ -53,4 +53,4 @@ Add/modify the following line, inside ''[General]'' section:
 
 
 # Vim modeline:
-# vi:tw=70
+# vi:tw=70 et
