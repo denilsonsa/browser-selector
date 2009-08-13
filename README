@@ -1,6 +1,6 @@
 Browser Selector
 
-version 0.3 - 2009-08-12
+version 0.3 - 2009-08-13
 
 
 == Introduction ==
@@ -123,6 +123,8 @@ Anyway, here are a few notes about conf.xml:
 Author:
   Denilson Figueiredo de Sá <denilsonsa@gmail.com>
 
+Contributions:
+  Dalton Matos Coelho Barreto <daltonmatos@gmail.com>
 
 # Vim modeline:
 # vi:tw=70 et

@@ -1,14 +1,22 @@
+2009-08-13  Denilson Figueiredo de Sá <denilsonsa@gmail.com>
+  * (misc): Released as version 0.3.
+  * browser-selector: Button box layout change from right to center.
+
+2009-08-12  Dalton Matos Coelho Barreto <daltonmatos@gmail.com>
+  * browser-selector: Added Esc-key handler.
+
 2009-08-12  Denilson Figueiredo de Sá <denilsonsa@gmail.com>
   * (misc): Version 0.3 almost done.
   * README: Added a nice README file.
   * ChangeLog: Slightly reformatted this ChangeLog.
+  * browser-selector: Changed tabs to spaces.
   * (misc): Published this project at:
     http://bitbucket.org/denilsonsa/browser-selector/
     This is the first time this source code is shared with the world!
 
 
 2007-07-06  Denilson Figueiredo de Sá <denilsonsa@gmail.com>
-  * (misc): "Released" as version 0.2
+  * (misc): "Released" as version 0.2.
   * browser-selector: Found the cause of BUG1 and fixed it.
 
   <BUG1>
@@ -51,7 +59,7 @@
 
 
 2007-07-05  Denilson Figueiredo de Sá <denilsonsa@gmail.com>
-  * (misc): "Released" as version 0.1
+  * (misc): "Released" as version 0.1.
   * (misc): Initial version. All main features were implemented.
   * browser-selector: There is a nasty bug when launching this script from
     wengophone program.

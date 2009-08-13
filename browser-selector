@@ -4,8 +4,7 @@
 
 
 # TODO:
-# - Make esc key close the dialog. (but how to do it?)
-# - Add a button called "Select and copy".
+# - Add a button called "Select and copy". (or maybe just "copy")
 # - Read http://www.catb.org/~esr/BROWSER/ and make sure this program
 #   complies with it.
 
@@ -20,7 +19,7 @@
 #   - Fault while reading a file
 #   - Fault while writing a file
 #   - Fault while parsing the XML config file
-#   - Probably many others...
+#   - Probably others...
 #
 # - Automatically resize icon images.
 #   - Add "max_size=32x32" and "min_size=16x16" configuration options.
@@ -36,7 +35,7 @@
 #
 # - This script does not autodetect installed browsers. Even though it
 #   would be a nice feature, I don't want to add it. However, I accept
-#   patches if someone else implement that.
+#   patches if someone else implements that.
 
 
 
@@ -73,7 +72,7 @@ except ImportError, e:
 class program(object):
     name     = "Browser Selector"
     version  = "0.3"
-    date     = "2009-08-12"
+    date     = "2009-08-13"
     author   = u"Denilson Figueiredo de Sá"
     email    = "denilsonsa@gmail.com"
     urls     = (
@@ -219,6 +218,9 @@ class browser_select_window(object):
         self.window.set_border_width(12)
         self.window.connect("delete_event", self.delete_event)
 
+        # Esc to quit
+        self.window.connect("key-press-event", self.keypress_event)
+
         self.url = gtk.Entry()
         self.url.set_activates_default(True)
         self.url.set_text(url)
@@ -233,7 +235,7 @@ class browser_select_window(object):
         self.close_button.connect_object("clicked", self.delete_event, self.window, None)
 
         self.buttons_box = gtk.HButtonBox()
-        self.buttons_box.set_layout(gtk.BUTTONBOX_END)
+        self.buttons_box.set_layout(gtk.BUTTONBOX_CENTER)
         self.buttons_box.add(self.execute_button)
         self.buttons_box.add(self.close_button)
 
@@ -246,7 +248,7 @@ class browser_select_window(object):
 
         self.execute_button.set_flags(gtk.CAN_DEFAULT)
         self.execute_button.grab_default()
-    
+
 
     def create_radio_buttons(self):
         "Reads the list of browsers and returns a VBox containing a radio button for each browser. Also adds tooltips and images to each radio button."
@@ -286,7 +288,7 @@ class browser_select_window(object):
             box.pack_start(eb, False, True, 0)
 
         return box
-    
+
 
     def execute_clicked(self, widget):
         main.execute_browser(self.radio_selected, self.url.get_text())
@@ -299,7 +301,17 @@ class browser_select_window(object):
 
     def delete_event(self, widget, event, data=None):
         main.close_app()
+
+        # If you return FALSE in the "delete_event" signal handler,
+        # GTK will emit the "destroy" signal. Returning TRUE means
+        # you don't want the window to be destroyed.
+
+        # But this doesn't really matter, since the app will quit anyway
         return False
+
+    def keypress_event(self, widget, event):
+        if event.keyval == gtk.keysyms.Escape:
+            main.close_app()
 
 
 
