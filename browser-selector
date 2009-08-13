@@ -1,95 +1,50 @@
-#!/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# vi:ts=4 sw=4
+# vi:ts=4 sw=4 et
 
 
 # TODO:
-# - Run a spellchecker, just to make sure the comments and the strings are ok.
-# - Automatically resize icon images.
-#   - Add "max_size=32x32" and "min_size=16x16" configuration options.
 # - Make esc key close the dialog. (but how to do it?)
 # - Add a button called "Select and copy".
-# - Make a nice webpage for this program and publish it on web!
-# - Change its version to 1.0 after some of above is done, and after some
-#   more testing.
-# - Read http://www.catb.org/~esr/BROWSER/ and make sure this program complies
-#   with it.
+# - Read http://www.catb.org/~esr/BROWSER/ and make sure this program
+#   complies with it.
 
 
-# Features:
-# - Python and PyGTK are the only required dependencies.
-# - The whole script is contained in only one file.
-# - Simple XML configuration file.
-# - Automatically write a default/sample configuration file if no one is
-#   found, but asks the user before doing it. This way, the user knows
-#   what happens and can edit the configuration file later.
-# - When run without parameters, or with more than one parameter, opens
-#   a dialog with usage instructions and information about author.
-# - The command to launch the browser is run in a safe way. The URL is
-#   passed directly as a paramenter. No need to worry about quotes or other
-#   special characters.
-# - Shows the command to launch each browser as a tooltip (but this can be
-#   disabled in configuration file).
-# - Automatically saves the last choosen browser, and restores this choice
-#   next time. (this feature can be disabled in configuration file)
-# - Shows the URL in a text entry field, allowing the user to edit or copy
-#   the URL before launching the selected browser.
-
-
-# Installation instructions:
-# - Get the script file.
-# - Put executable permissions on it (chmod +x broken-selector).
-# - Place it in some directory that is listed in $PATH (I personally like
-#   to place it at ~/bin directory, but you may need to manually add this
-#   to $PATH).
-# - (Optional) Add this line to your ~/.bash_profile, or ~/.bashrc, or any
-#   login script you want:
-#   export BROWSER=browser-selector
-# - When run for the first time, it will write a sample configuration file
-#   (after the user confirmation). Then, just edit that file to configure
-#   this program.
-
-
-# Notes about config.xml:
-# - If "cmd" does not contain %s, then the URL is appended as last parameter.
-# - If "cmd" contains a %s, then the URL is placed wherever %s is found.
-# - If "cmd" contains more than one %-escape, then this script may raise an
-#   exception, depending on position of these escapes.
+# Known limitations:
 #
-# - "icon" attribute is optional.
-# - If file pointed by "icon" is not found, then it won't be loaded and no
-#   icon will be displayed.
-# - If file pointed by "icon" is found but can't be loaded for some reason,
-#   then a "broken image" icon will be displayed.
+# These aren't exactly bugs, but just some minor limitations that I'm not
+# willing to fix by myself
 #
-# - "show_tooltips" and "show_images" are pretty descriptive, so I won't
-#   explain them. :)
-# - "save_last_selection" will prevent this program from *writing* the
-#   "<conf_dir>/last_selected" file. However, this program will always
-#   read that file if it exists.
-
-
-# Known bugs/limitations:
 # - Almost no exception/error handling is done. The following things are
 #   known to abort the program:
-#   - Fail while reading a file
-#   - Fail while writing a file
-#   - Fail while parsing the XML config file
+#   - Fault while reading a file
+#   - Fault while writing a file
+#   - Fault while parsing the XML config file
 #   - Probably many others...
+#
+# - Automatically resize icon images.
+#   - Add "max_size=32x32" and "min_size=16x16" configuration options.
+#
 # - Incorrect (but well-formed) XML files might be accepted. This happens
 #   because no DTD validation is performed. Adding such feature has almost
 #   no benefit and requires one extra dependency: PyXML.
+#
 # - There is no fancy GUI to edit the configuration file. You must do it
 #   manually, using a text editor. Since users only need to edit the
 #   configuration file once (and whenever they add a new browser), there
 #   is no real need for a GUI.
+#
 # - This script does not autodetect installed browsers. Even though it
 #   would be a nice feature, I don't want to add it. However, I accept
 #   patches if someone else implement that.
 
 
 
-import sys, os, subprocess, shlex, xml.dom.minidom
+import os
+import shlex
+import subprocess
+import sys
+import xml.dom.minidom
 
 try:
 
@@ -104,7 +59,8 @@ except ImportError, e:
 	# However, if this doesn't help, the ImportError exception will just be
 	# raised again.
 	if os.environ.has_key("LD_LIBRARY_PATH") and os.environ["LD_LIBRARY_PATH"].strip():
-		newenv = dict((x, y) for x, y in os.environ.iteritems() if x!="LD_LIBRARY_PATH")
+		newenv = dict(os.environ)
+        newenv.pop("LD_LIBRARY_PATH")
 		# The OSError exception is not useful here. Let's ignore it.
 		try:
 			os.execvpe(sys.argv[0], sys.argv, newenv)
@@ -116,13 +72,15 @@ except ImportError, e:
 
 class program(object):
 	name     = "Browser Selector"
-	version  = "0.2"
-	date     = "2007-07-06"
+	version  = "0.3"
+	date     = "2009-08-12"
 	author   = u"Denilson Figueiredo de Sá"
 	email    = "denilsonsa@gmail.com"
 	urls     = (
-		"http://denilsonsa.sh.nu/~denilson/",
-		"http://denilsonsa.selfip.org/~denilson/")
+		"http://bitbucket.org/denilsonsa/browser-selector/",
+        "http://my.opera.com/CrazyTerabyte/",
+		"http://denilsonsa.selfip.org/~denilson/",
+    )
 	exe_file = "browser-selector"
 	conf_dir = "~/.config/browser-selector"
 	last_selected_file = "last_selected"
@@ -194,7 +152,7 @@ class config_object(object):
 		doc = xml.dom.minidom.parse(program.conf_file)
 
 		browsers_el = doc.getElementsByTagName("browsers")
-		if len(browsers_el)==1:
+		if len(browsers_el) == 1:
 			browsers_el = browsers_el[0]
 			for i in browsers_el.getElementsByTagName("browser"):
 				self.browsers.append( Browser(
@@ -202,16 +160,17 @@ class config_object(object):
 					i.getAttribute("cmd"),
 					i.getAttribute("icon")
 				) )
-		elif len(browsers_el)!=1:
+		elif len(browsers_el) != 1:
 			raise Exception("Invalid XML configuration file! Exactly one <browsers> element is required.")
 
 		config_el = doc.getElementsByTagName("config")
-		if len(config_el)==1:
+		if len(config_el) == 1:
 			config_el = config_el[0]
 			for i in config_el.getElementsByTagName("option"):
 				try:
 					name  = i.getAttribute("name").lower()
 					value = i.getAttribute("value")
+                    
 					if name == "show_tooltips":
 						self.show_tooltips = self.parse_boolean(value)
 					elif name == "show_images":
@@ -220,7 +179,7 @@ class config_object(object):
 						self.save_last_selection = self.parse_boolean(value)
 				except ValueError, e:
 					raise ValueError("Invalid value while parsing '%s' option: %s" % (name, str(e)))
-		elif len(config_el)>1:
+		elif len(config_el) > 1:
 			raise Exception("Invalid XML configuration file! Only one <config> element is allowed.")
 
 		doc.unlink()
@@ -300,7 +259,7 @@ class browser_select_window(object):
 			radio = gtk.RadioButton(radio, i.name, True)
 			radio.connect("toggled", self.radio_button_toggled, number)
 
-			if number==program.config.last_selected:
+			if number == program.config.last_selected:
 				radio.set_active(True)
 				# The next line is not actually needed, because previous line
 				# call will run the callback.
@@ -360,7 +319,7 @@ class browser_selector(object):
 			else:
 				self.close_app(1)
 		program.config = config_object()
-		if len(sys.argv)==2:
+		if len(sys.argv) == 2:
 			self.browser_select = browser_select_window(url=sys.argv[1])
 			self.browser_select.window.show()
 			gtk.main()
@@ -445,7 +404,7 @@ class browser_selector(object):
 			c = shlex.split(str(b.cmd))
 			for i,s in enumerate(c):
 				if "%s" in s:
-					c[i] = s % url
+					c[i] = s.replace("%s", url)
 					break
 			else:
 				c.append(str(url))

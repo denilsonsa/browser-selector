@@ -1,0 +1,56 @@
+There are 3 known ways to set the default browser:
+
+* Using BROWSER environment variable
+* Inside Gnome, using Gnome Control Panel, stored in gconf
+* Inside KDE, using KControl, stored in a plain text file
+
+
+== Using environment variable ==
+
+Add the following line to your login script (~/.bash_profile or
+~/.bashrc):
+ export BROWSER=browser-selector
+
+
+== Inside Gnome ==
+
+=== Using Gnome Control Panel ===
+
+This method is only available if you have Gnome installed.
+
+Run this program:
+ gnome-default-applications-properties
+
+=== Using gconf ===
+
+This method can be used by people who don't have Gnome installed, but
+at least have gconf and gconf-editor.
+
+Run this program:
+ gconf-editor
+Then, look for the following folders:
+ desktop/gnome/url-handlers/http
+ desktop/gnome/url-handlers/https
+Edit ''command'' to:
+ browser-selector %s
+Leave ''enabled'' checked.
+Leave ''needs_terminal'' unchecked.
+
+
+== Inside KDE ==
+
+=== Using KControl ===
+
+Kcontrol/KDE Components/Component Chooser/Web Browser
+
+=== Editing manually ===
+
+Edit this file:
+ ~/.kde/share/config/kdeglobals
+Add/modify the following line, inside ''[General]'' section:
+ BrowserApplication=!browser-selector
+
+
+
+# Vim modeline:
+# vi:tw=70

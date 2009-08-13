@@ -1,5 +1,16 @@
-2007-07-06: version 0.2
-* Found the cause of BUG1 and fixed it.
+2009-08-12  Denilson Figueiredo de Sá <denilsonsa@gmail.com>
+  * (misc): Version 0.3 almost done.
+  * README: Added a nice README file.
+  * ChangeLog: Slightly reformatted this ChangeLog.
+  * (misc): Published this project at:
+    http://bitbucket.org/denilsonsa/browser-selector/
+	This is the first time this source code is shared with the world!
+
+
+2007-07-06  Denilson Figueiredo de Sá <denilsonsa@gmail.com>
+  * (misc): "Released" as version 0.2
+  * browser-selector: Found the cause of BUG1 and fixed it.
+
   <BUG1>
   Cause:
   When wengophone is run, it requires a custom $LD_LIBRARY_PATH environment
@@ -39,9 +50,12 @@
   </BUG1>
 
 
-2007-07-05: version 0.1
-* Initial version. All main features were implemented.
-* There is a nasty bug when launching this script from wengophone program.
+2007-07-05  Denilson Figueiredo de Sá <denilsonsa@gmail.com>
+  * (misc): "Released" as version 0.1
+  * (misc): Initial version. All main features were implemented.
+  * browser-selector: There is a nasty bug when launching this script from
+    wengophone program.
+
   <BUG1>
   Summary: Launching this script from wengophone fails when trying to import gtk
   Reporter: Denilson

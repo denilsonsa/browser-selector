@@ -1,0 +1,128 @@
+Browser Selector
+
+version 0.3 - 2009-08-12
+
+
+== Introduction ==
+
+Browser Selector is a Python script that allows you to choose what
+browser you want to launch for each URL. It is intended to be used as
+a default URL handler.
+
+
+== Motivation ==
+
+When I click on a link at some program, like instant messenger or
+Google Earth, the URL will be opened in the desktop default browser.
+
+I have several browsers installed on my system, but I don't want to
+set one specific browser as the default, because I don't use only one.
+Depending on the situation, I want to choose between one browser or
+another.
+
+For instance, I use Opera as my primary browser and I've disabled
+both Java and Flash. They are too slow and buggy, and they usually
+make the browser crash. Thus, although I prefer to open most URLs in
+Opera, some of them I prefer to open in Firefox. After all, if Firefox
+crashes, I won't lose anything important, since my main browsing (with
+lots of open tabs) happens in Opera.
+
+However, sometimes I haven't started my browser yet, or I've just
+closed it and don't want to start it again. In these cases, if I need
+to open a URL, I prefer to choose a browser that would start up as
+fast as possible. In these cases I prefer Links.
+
+I've cited 3 different browsers so far, and, believe me, I do use all
+of them.
+
+
+Since I can't choose one browser to set as default, I need something
+that allows me to choose which browser to run whenever a browser would
+be called.
+
+Thus, browser-selector was born!
+
+
+== Features ==
+
+* Small, simple, straight-forward.
+* Everything you need in only one executable Python script.
+* Python and PyGTK are the only required dependencies.
+* Easy to setup, easy to use.
+* Automatically generates a sample configuration file on first use.
+* Remembers the previously selected browser for next time.
+* Allows the user to edit the URL before calling the browser.
+
+And also the following great non-features:
+
+* No fancy GUI to edit the configuration file! You must use your own
+  text editor!
+* No buggy browser auto-detection! You must manually list all browsers
+  you want to use.
+
+
+== Installation ==
+
+1. Put the 'browser-selector' file somewhere in the $PATH.
+   I personally like to place it at my ~/bin directory, just remember
+   to add it to the $PATH (if needed).
+
+2. Set the executable bit: chmod +x browser-selector
+
+3. Configure your desktop to use 'browser-selector' as the default
+   browser. (see how_to_set_the_default_browser.txt)
+
+4. When running for the first time, it will write (after user
+   confirmation) a sample configuration file at
+     ~/.config/browser-selector/conf.xml
+   Just edit this file to suit your needs.
+
+
+== Usage ==
+
+Run:
+  browser-selector http://www.example.com/
+
+The only accepted parameter is the URL itself.
+There are no extra command-line parameters.
+
+Running without parameters will open the info dialog.
+
+
+== Configuration file ==
+
+The configuration file is stored by default at:
+  ~/.config/browser-selector/conf.xml
+
+It is a simple XML file that is easy to edit in a text editor. It is
+also pretty self-explanatory, so I won't describe it completely here.
+Anyway, here are a few notes about conf.xml:
+
+* If "cmd" contains the substring "%s" (without quotes), then that
+  substring will be replaced by the URL itself.
+* If "cmd" does not contain "%s", then the URL will be appended as the
+  last parameter to the command.
+* The URL will be directly passed as a parameter to the command, so
+  you don't need to worry about shell expansion or quotes.
+
+* The "icon" attribute is optional.
+* No path completion is done, so you need to write the full absolute
+  path to the image file.
+* If the image pointed by "icon" is not found, or if this attribute is
+  missing, then no image will be loaded and no icon will be displayed.
+* If the image pointed by "icon" is found but can't be loaded, then
+  GTK+ will display a "broken image" icon.
+
+* The "save_last_selection" option will prevent this program from
+  writing the "<confdir>/last_selected" file, but it always reads from
+  that file if it exists.
+
+
+== Credits ==
+
+Author:
+  Denilson Figueiredo de Sá <denilsonsa@gmail.com>
+
+
+# Vim modeline:
+# vi:tw=70
