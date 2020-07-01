@@ -76,9 +76,7 @@ class program(object):
     author   = u"Denilson Figueiredo de Sá"
     email    = "denilsonsa@gmail.com"
     urls     = (
-        "http://bitbucket.org/denilsonsa/browser-selector/",
-        "http://my.opera.com/CrazyTerabyte/",
-        "http://denilsonsa.selfip.org/~denilson/",
+        "https://github.com/denilsonsa/browser-selector/",
     )
     exe_file = "browser-selector"
     conf_dir = "~/.config/browser-selector"
